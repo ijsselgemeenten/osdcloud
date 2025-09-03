@@ -131,7 +131,7 @@ if (Test-HPIASupport){
     #$Global:MyOSDCloud.HPCMSLDriverPackLatest = [bool]$true #In Test 
     #Set HP BIOS Settings to what I want:
     iex (irm https://raw.githubusercontent.com/ijsselgemeenten/osdcloud/refs/heads/main/Manage-HPBiosSettings.ps1)
-    Manage-HPBiosSettings -SetSettings -SetupPassword hbv1xtvw
+    Manage-HPBiosSettings -SetSettings
 }
 
 if ($Manufacturer -match "Lenovo") {
