@@ -1,192 +1,186 @@
-#upload device
-# Mapping tussen leesbare namen en echte GroupTags
-$GroupTagMap = @{
-    "Persoonlijk Device"       = "GRIJPersonalDevice"
-    "NUC Werkplek"             = "GRIJNUC"
-    "Werkplein Cursus Laptop"  = "GRIJWERKPLEIN"
-    "Werkcentrum Rijnmond"     = "WCR"
-    "Shared Device"            = "GRIJSharedDevice"
-    "Publieke Zuil (Krimpen)"  = "KRIPUBLICZUIL"
-    "Wallboard (Krimpen)"      = "KRIKCCWALLBOARD"
-    "Gezondheidscentrum"       = "GRIJGEZONDHEIDSCENTRUM"
-    "Werkplein Kiosk"          = "WERKPLEINKIOSK"
+#to Run, boot OSDCloudUSB, at the PS Prompt: iex (irm win11.garytown.com)
+
+#region Initialization
+function Write-DarkGrayDate {
+    [CmdletBinding()]
+    param (
+        [Parameter(Position = 0)]
+        [System.String]
+        $Message
+    )
+    if ($Message) {
+        Write-Host -ForegroundColor DarkGray "$((Get-Date).ToString('yyyy-MM-dd-HHmmss')) $Message"
+    }
+    else {
+        Write-Host -ForegroundColor DarkGray "$((Get-Date).ToString('yyyy-MM-dd-HHmmss')) " -NoNewline
+    }
 }
-
-# Form aanmaken
-$form = New-Object System.Windows.Forms.Form
-$form.Text = "Intune Device Profiel Selectie"
-$form.Size = New-Object System.Drawing.Size(500,280)
-$form.StartPosition = "CenterScreen"
-$form.BackColor = [System.Drawing.Color]::WhiteSmoke
-
-# Titel
-$title = New-Object System.Windows.Forms.Label
-$title.Text = "Selecteer een Intune Device Profiel"
-$title.Font = New-Object System.Drawing.Font("Segoe UI",16,[System.Drawing.FontStyle]::Bold)
-$title.ForeColor = [System.Drawing.Color]::SteelBlue
-$title.AutoSize = $true
-$title.Location = New-Object System.Drawing.Point(20,20)
-$form.Controls.Add($title)
-
-# Subtitel
-$subtitle = New-Object System.Windows.Forms.Label
-$subtitle.Text = "Kies hieronder welk profiel je wilt toepassen voor dit device:"
-$subtitle.Font = New-Object System.Drawing.Font("Segoe UI",10)
-$subtitle.AutoSize = $true
-$subtitle.Location = New-Object System.Drawing.Point(22,60)
-$form.Controls.Add($subtitle)
-
-# Dropdown
-$dropdown = New-Object System.Windows.Forms.ComboBox
-$dropdown.Location = New-Object System.Drawing.Point(25,100)
-$dropdown.Size = New-Object System.Drawing.Size(430,35)
-$dropdown.Font = New-Object System.Drawing.Font("Segoe UI",12)
-$dropdown.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
-$dropdown.Items.AddRange($GroupTagMap.Keys)
-
-# Standaard selectie -> Persoonlijk Device
-$defaultKey = "Persoonlijk Device"
-$dropdown.SelectedIndex = $dropdown.Items.IndexOf($defaultKey)
-$form.Controls.Add($dropdown)
-
-# OK knop
-$okButton = New-Object System.Windows.Forms.Button
-$okButton.Text = "Start uitrol"
-$okButton.Font = New-Object System.Drawing.Font("Segoe UI",11,[System.Drawing.FontStyle]::Bold)
-$okButton.BackColor = [System.Drawing.Color]::SteelBlue
-$okButton.ForeColor = [System.Drawing.Color]::White
-$okButton.FlatStyle = 'Flat'
-$okButton.Size = New-Object System.Drawing.Size(120,40)
-$okButton.Location = New-Object System.Drawing.Point(335,170)
-$okButton.Add_Click({
-    $form.Tag = $GroupTagMap[$dropdown.SelectedItem]
-    $form.Close()
-})
-$form.Controls.Add($okButton)
-
-# Cancel knop
-$cancelButton = New-Object System.Windows.Forms.Button
-$cancelButton.Text = "Annuleren"
-$cancelButton.Font = New-Object System.Drawing.Font("Segoe UI",11)
-$cancelButton.BackColor = [System.Drawing.Color]::LightGray
-$cancelButton.ForeColor = [System.Drawing.Color]::Black
-$cancelButton.FlatStyle = 'Flat'
-$cancelButton.Size = New-Object System.Drawing.Size(120,40)
-$cancelButton.Location = New-Object System.Drawing.Point(200,170)
-$cancelButton.Add_Click({
-    $form.Tag = $null
-    $form.Close()
-})
-$form.Controls.Add($cancelButton)
-
-# Form tonen
-$form.ShowDialog() | Out-Null
-$GroupTag = $form.Tag
-
-# Als er geen keuze is gemaakt (cancel)
-if ([string]::IsNullOrWhiteSpace($GroupTag)) {
-    Write-Host "Geen GroupTag gekozen, script gestopt." -ForegroundColor Red
-    exit
+function Write-DarkGrayHost {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true, Position = 0)]
+        [System.String]
+        $Message
+    )
+    Write-Host -ForegroundColor DarkGray $Message
 }
+function Write-DarkGrayLine {
+    [CmdletBinding()]
+    param ()
+    Write-Host -ForegroundColor DarkGray '========================================================================='
+}
+function Write-SectionHeader {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true, Position = 0)]
+        [System.String]
+        $Message
+    )
+    Write-DarkGrayLine
+    Write-DarkGrayDate
+    Write-Host -ForegroundColor Cyan $Message
+}
+function Write-SectionSuccess {
+    [CmdletBinding()]
+    param (
+        [Parameter(Position = 0)]
+        [System.String]
+        $Message = 'Success!'
+    )
+    Write-DarkGrayDate
+    Write-Host -ForegroundColor Green $Message
+}
+#endregion
 
-Write-Host "Gekozen GroupTag: $GroupTag" -ForegroundColor Green
+$ScriptName = 'win11.garytown.com'
+$ScriptVersion = '25.01.22.1'
+Write-Host -ForegroundColor Green "$ScriptName $ScriptVersion"
+#iex (irm functions.garytown.com) #Add custom functions used in Script Hosting in GitHub
+#iex (irm functions.osdcloud.com) #Add custom fucntions from OSDCloud
 
-# Settings
+<# Offline Driver Details
+If you extract Driver Packs to your Flash Drive, you can DISM them in while in WinPE and it will make the process much faster, plus ensure driver support for first Boot
+Extract to: OSDCLoudUSB:\OSDCloud\DriverPacks\DISM\$ComputerManufacturer\$ComputerProduct
+Use OSD Module to determine Vars
+$ComputerProduct = (Get-MyComputerProduct)
+$ComputerManufacturer = (Get-MyComputerManufacturer -Brief)
+#>
+
+
+
+#Variables to define the Windows OS / Edition etc to be applied during OSDCloud
+$Product = (Get-MyComputerProduct)
+$Model = (Get-MyComputerModel)
+$Manufacturer = (Get-CimInstance -ClassName Win32_ComputerSystem).Manufacturer
+$OSVersion = 'Windows 11' #Used to Determine Driver Pack
+$OSReleaseID = '24H2' #Used to Determine Driver Pack
 $OSName = 'Windows 11 24H2 x64'
-$OSEdition = 'Pro'
-$OSActivation = Volume'
+$OSEdition = 'Enterprise'
+$OSActivation = 'Volume'
 $OSLanguage = 'nl-nl'
-$GroupTag = "$GroupTag"
-$TimeServerUrl = "time.cloudflare.com"
-$OutputFile = "X:\AutopilotHash.csv"
-$TenantID = [Environment]::GetEnvironmentVariable('OSDCloudAPTenantID','Machine') # $env:OSDCloudAPTenantID doesn't work within WinPe
-$AppID = [Environment]::GetEnvironmentVariable('OSDCloudAPAppID','Machine')
-$AppSecret = [Environment]::GetEnvironmentVariable('OSDCloudAPAppSecret','Machine')
 
-#Set Global OSDCloud Vars
+
+#Set OSDCloud Vars
 $Global:MyOSDCloud = [ordered]@{
-    BrandColor = "#0096FF"
     Restart = [bool]$False
-    RecoveryPartition = [bool]$True
+    RecoveryPartition = [bool]$true
     OEMActivation = [bool]$True
-    WindowsUpdate = [bool]$True
-    WindowsUpdateDrivers = [bool]$True
-    WindowsDefenderUpdate = [bool]$True
-    SetTimeZone = [bool]$True
+    WindowsUpdate = [bool]$true
+    WindowsUpdateDrivers = [bool]$true
+    WindowsDefenderUpdate = [bool]$true
+    SetTimeZone = [bool]$true
     ClearDiskConfirm = [bool]$False
     ShutdownSetupComplete = [bool]$false
-    SyncMSUpCatDriverUSB = [bool]$True
-    CheckSHA1 = [bool]$True
+    SyncMSUpCatDriverUSB = [bool]$true
+    CheckSHA1 = [bool]$true
 }
 
-# Largely reworked from https://github.com/jbedrech/WinPE_Autopilot/tree/main
-Write-Host "Autopilot Device Registration Version 1.0"
+#Testing MS Update Catalog Driver Sync
+#$Global:MyOSDCloud.DriverPackName = 'Microsoft Update Catalog'
 
-# Set the time
-$DateTime = (Invoke-WebRequest -Uri $TimeServerUrl -UseBasicParsing).Headers.Date
-Set-Date -Date $DateTime
+#Used to Determine Driver Pack
+$DriverPack = Get-OSDCloudDriverPack -Product $Product -OSVersion $OSVersion -OSReleaseID $OSReleaseID
 
-# Download required files
-$oa3tool = 'https://raw.githubusercontent.com/ijsselgemeenten/osdcloud/refs/heads/main/oa3tool.exe'
-$pcpksp = 'https://raw.githubusercontent.com/ijsselgemeenten/osdcloud/refs/heads/main/PCPKsp.dll'
-$inputxml = 'https://raw.githubusercontent.com/ijsselgemeenten/osdcloud/refs/heads/main/input.xml'
-$oa3cfg = 'https://raw.githubusercontent.com/ijsselgemeenten/osdcloud/refs/heads/main/OA3.cfg'
+if ($DriverPack){
+    $Global:MyOSDCloud.DriverPackName = $DriverPack.Name
+}
+#$Global:MyOSDCloud.DriverPackName = "None"
 
-Invoke-WebRequest $oa3tool -OutFile $PSScriptRoot\oa3tool.exe
-Invoke-WebRequest $pcpksp -OutFile X:\Windows\System32\PCPKsp.dll
-Invoke-WebRequest $inputxml -OutFile $PSScriptRoot\input.xml
-Invoke-WebRequest $oa3cfg -OutFile $PSScriptRoot\OA3.cfg
-
-# Create OA3 Hash
-If((Test-Path X:\Windows\System32\wpeutil.exe) -and (Test-Path X:\Windows\System32\PCPKsp.dll))
-{
-	#Register PCPKsp
-	rundll32 X:\Windows\System32\PCPKsp.dll,DllInstall
+<#If Drivers are expanded on the USB Drive, disable installing a Driver Pack
+if (Test-DISMFromOSDCloudUSB -eq $true){
+    Write-Host "Found Driver Pack Extracted on Cloud USB Flash Drive, disabling Driver Download via OSDCloud" -ForegroundColor Green
+    if ($Global:MyOSDCloud.SyncMSUpCatDriverUSB -eq $true){
+        write-host "Setting DriverPackName to 'Microsoft Update Catalog'"
+        $Global:MyOSDCloud.DriverPackName = 'Microsoft Update Catalog'
+    }
+    else {
+        write-host "Setting DriverPackName to 'None'"
+        $Global:MyOSDCloud.DriverPackName = "None"
+    }
+}
+#>
+#Enable HPIA | Update HP BIOS | Update HP TPM
+ 
+if (Test-HPIASupport){
+    Write-SectionHeader -Message "Detected HP Device, Enabling HPIA, HP BIOS and HP TPM Updates"
+    #$Global:MyOSDCloud.DevMode = [bool]$True
+    $Global:MyOSDCloud.HPTPMUpdate = [bool]$True
+    if ($Product -ne '83B2' -and $Model -notmatch "zbook"){$Global:MyOSDCloud.HPIAALL = [bool]$true} #I've had issues with this device and HPIA
+    #{$Global:MyOSDCloud.HPIAALL = [bool]$true}
+    $Global:MyOSDCloud.HPBIOSUpdate = [bool]$true
+    #$Global:MyOSDCloud.HPCMSLDriverPackLatest = [bool]$true #In Test 
+    #Set HP BIOS Settings to what I want:
+    iex (irm https://raw.githubusercontent.com/ijsselgemeenten/osdcloud/refs/heads/main/Manage-HPBiosSettings.ps1)
+    Manage-HPBiosSettings -SetSettings -SetupPassword hbv1xtvw
 }
 
-#Change Current Diretory so OA3Tool finds the files written in the Config File 
-&cd $PSScriptRoot
-
-#Get SN from WMI
-$serial = (Get-WmiObject -Class Win32_BIOS).SerialNumber
-
-#Run OA3Tool
-&$PSScriptRoot\oa3tool.exe /Report /ConfigFile=$PSScriptRoot\OA3.cfg /NoKeyCheck
-
-#Check if Hash was found
-If (Test-Path $PSScriptRoot\OA3.xml) 
-{
-	#Read Hash from generated XML File
-	[xml]$xmlhash = Get-Content -Path "$PSScriptRoot\OA3.xml"
-	$hash=$xmlhash.Key.HardwareHash
-
-	$computers = @()
-	$product=""
-	# Create a pipeline object
-	$c = New-Object psobject -Property @{
- 		"Device Serial Number" = $serial
-		"Windows Product ID" = $product
-		"Hardware Hash" = $hash
-		"Group Tag" = $GroupTag
-	}
-	
- 	$computers += $c
-	$computers | Select "Device Serial Number", "Windows Product ID", "Hardware Hash", "Group Tag" | ConvertTo-CSV -NoTypeInformation | % {$_ -replace '"',''} | Out-File $OutputFile
+if ($Manufacturer -match "Lenovo") {
+    #Set Lenovo BIOS Settings to what I want:
+    iex (irm https://raw.githubusercontent.com/gwblok/garytown/master/OSD/CloudOSD/Manage-LenovoBiosSettings.ps1)
+    try {
+        Manage-LenovoBIOSSettings -SetSettings
+    }
+    catch {
+        <#Do this if a terminating exception happens#>
+    }
+    
 }
 
-# Upload the hash
-Start-Sleep 30
 
-#Get Modules needed for Installation
-#PSGallery Support
-Invoke-Expression(Invoke-RestMethod sandbox.osdcloud.com)
-Install-Module WindowsAutoPilotIntune -SkipPublisherCheck -Force
+#write variables to console
+Write-SectionHeader "OSDCloud Variables"
+Write-Output $Global:MyOSDCloud
 
-#Connection
-Connect-MSGraphApp -Tenant $TenantId -AppId $AppId -AppSecret $AppSecret
+#Update Files in Module that have been updated since last PowerShell Gallery Build (Testing Only)
+#$ModulePath = (Get-ChildItem -Path "$($Env:ProgramFiles)\WindowsPowerShell\Modules\osd" | Where-Object {$_.Attributes -match "Directory"} | Select-Object-Object -Last 1).fullname
+#import-module "$ModulePath\OSD.psd1" -Force
 
-#Import Autopilot CSV to Tenant
-Import-AutoPilotCSV -csvFile $OutputFile
+#Launch OSDCloud
+Write-SectionHeader -Message "Starting OSDCloud"
+write-host "Start-OSDCloud -OSName $OSName -OSEdition $OSEdition -OSActivation $OSActivation -OSLanguage $OSLanguage"
 
-Write-Host "Start-OSDCloud -OSName $OSName -OSEdition $OSEdition -OSActivation $OSActivation -OSLanguage $OSLanguage"
 Start-OSDCloud -OSName $OSName -OSEdition $OSEdition -OSActivation $OSActivation -OSLanguage $OSLanguage
+
+Write-SectionHeader -Message "OSDCloud Process Complete, Running Custom Actions From Script Before Reboot"
+
+
+
+<#Used in Testing "Beta Gary Modules which I've updated on the USB Stick"
+$OfflineModulePath = (Get-ChildItem -Path "C:\Program Files\WindowsPowerShell\Modules\osd" | Where-Object {$_.Attributes -match "Directory"} | Select-Object -Last 1).fullname
+write-host -ForegroundColor Yellow "Updating $OfflineModulePath using $ModulePath - For Dev Purposes Only"
+copy-item "$ModulePath\*" "$OfflineModulePath"  -Force -Recurse
+#>
+#Copy CMTrace Local:
+if (Test-path -path "x:\windows\system32\cmtrace.exe"){
+    copy-item "x:\windows\system32\cmtrace.exe" -Destination "C:\Windows\System\cmtrace.exe" -verbose
+}
+
+if ($Manufacturer -match "Lenovo") {
+    $PowerShellSavePath = 'C:\Program Files\WindowsPowerShell'
+    Write-Host "Copy-PSModuleToFolder -Name LSUClient to $PowerShellSavePath\Modules"
+    Copy-PSModuleToFolder -Name LSUClient -Destination "$PowerShellSavePath\Modules"
+    Write-Host "Copy-PSModuleToFolder -Name Lenovo.Client.Scripting to $PowerShellSavePath\Modules"
+    Copy-PSModuleToFolder -Name Lenovo.Client.Scripting -Destination "$PowerShellSavePath\Modules"
+}
+#Restart
+restart-computer
