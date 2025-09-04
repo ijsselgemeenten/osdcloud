@@ -124,10 +124,10 @@ if (Test-DISMFromOSDCloudUSB -eq $true){
 if (Test-HPIASupport){
     Write-SectionHeader -Message "Detected HP Device, Enabling HPIA, HP BIOS and HP TPM Updates"
     #$Global:MyOSDCloud.DevMode = [bool]$True
-    $Global:MyOSDCloud.HPTPMUpdate = [bool]$True
+    $Global:MyOSDCloud.HPTPMUpdate = [bool]$False
     if ($Product -ne '83B2' -and $Model -notmatch "zbook"){$Global:MyOSDCloud.HPIAALL = [bool]$true} #I've had issues with this device and HPIA
     #{$Global:MyOSDCloud.HPIAALL = [bool]$true}
-    $Global:MyOSDCloud.HPBIOSUpdate = [bool]$True
+    $Global:MyOSDCloud.HPBIOSUpdate = [bool]$False
     #$Global:MyOSDCloud.HPCMSLDriverPackLatest = [bool]$true #In Test 
     #Set HP BIOS Settings to what I want:
     iex (irm https://raw.githubusercontent.com/gwblok/garytown/master/OSD/CloudOSD/Manage-HPBiosSettings.ps1)
