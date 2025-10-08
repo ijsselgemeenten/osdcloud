@@ -1,130 +1,60 @@
-<#PSScriptInfo
-.VERSION 23.6.10.1
-.GUID 8aa84227-ddb5-4276-95fb-ffb2d6121bf8
-.AUTHOR David Segura @SeguraOSD
-.COMPANYNAME osdcloud.com
-.COPYRIGHT (c) 2023 David Segura osdcloud.com. All rights reserved.
-.TAGS OSDeploy OSDCloud WinGet PowerShell
-.LICENSEURI 
-.PROJECTURI https://github.com/OSDeploy/OSD
-.ICONURI 
-.EXTERNALMODULEDEPENDENCIES 
-.REQUIREDSCRIPTS 
-.EXTERNALSCRIPTDEPENDENCIES 
-.RELEASENOTES
-Script should be executed in a Command Prompt using the following command
-powershell Invoke-Expression -Command (Invoke-RestMethod -Uri winget.osdcloud.com)
-This is abbreviated as
-powershell iex (irm winget.osdcloud.com)
-#>
-#Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-    PowerShell Script which supports WinGet
-.DESCRIPTION
-    PowerShell Script which supports WinGet
-.NOTES
-    Version 23.9.28.1
+Installs WinGet, for use with Intune
+
 .LINK
-    https://raw.githubusercontent.com/OSDeploy/OSD/master/cloud/subdomains/winget.osdcloud.com.ps1
+   https://ourcloudnetwork.com
+   https://www.linkedin.com/in/danielbradley2/
+   https://twitter.com/DanielatOCN
+   
+.NOTES
+   Version:        0.1
+   Author:         Daniel Bradley
+   Creation Date:  Friday, January 5th 2024, 5:18:37 pm
+   File: Install-winget.ps1
+
 .EXAMPLE
-    powershell iex (irm winget.osdcloud.com)
+Deploy as Intune script
+
+.LICENSE
+Use this code free of charge at your own risk.
+Never deploy code into production if you do not know what it does.
 #>
-[CmdletBinding()]
-param()
-$ScriptName = 'winget.osdcloud.com'
-$ScriptVersion = '23.9.28.1'
 
-#region Initialize
-$Transcript = "$((Get-Date).ToString('yyyy-MM-dd-HHmmss'))-$ScriptName.log"
-$null = Start-Transcript -Path (Join-Path "$env:SystemRoot\Temp" $Transcript) -ErrorAction Ignore
+#Create path and define log file
+$path= "C:\ProgramData\WinGet"
+$LogFile = "InstallLog.txt"
+mkdir $path -ErrorAction SilentlyContinue
 
-if ($env:SystemDrive -eq 'X:') {
-    $WindowsPhase = 'WinPE'
-}
-else {
-    $ImageState = (Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Setup\State' -ErrorAction Ignore).ImageState
-    if ($env:UserName -eq 'defaultuser0') {$WindowsPhase = 'OOBE'}
-    elseif ($ImageState -eq 'IMAGE_STATE_SPECIALIZE_RESEAL_TO_OOBE') {$WindowsPhase = 'Specialize'}
-    elseif ($ImageState -eq 'IMAGE_STATE_SPECIALIZE_RESEAL_TO_AUDIT') {$WindowsPhase = 'AuditMode'}
-    else {$WindowsPhase = 'Windows'}
+#Write to log
+Function LogWrite
+{
+   Param ([string]$logstring)
+   $date = (Get-Date).tostring("yyyyMMdd-HH:mm")
+   Add-content "$path\$Logfile" -value "$date - $logstring"
 }
 
-Write-Host -ForegroundColor Green "[+] $ScriptName $ScriptVersion ($WindowsPhase Phase)"
-Invoke-Expression -Command (Invoke-RestMethod -Uri functions.osdcloud.com)
-#endregion
+#Check if WinGet is Installed
+$TestPath = "C:\Program Files\WindowsApps\Microsoft.DesktopAppInstaller_1.21.3482.0_x64__8wekyb3d8bbwe\AppxSignature.p7x"
+$Winget = Test-path $TestPath -PathType Leaf
 
-#region Admin Elevation
-$whoiam = [system.security.principal.windowsidentity]::getcurrent().name
-$isElevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
-if ($isElevated) {
-    Write-Host -ForegroundColor Green "[+] Running as $whoiam (Admin Elevated)"
-}
-else {
-    Write-Host -ForegroundColor Red "[!] Running as $whoiam (NOT Admin Elevated)"
-    Break
-}
-#endregion
-
-#region Transport Layer Security (TLS) 1.2
-Write-Host -ForegroundColor Green "[+] Transport Layer Security (TLS) 1.2"
-[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-#endregion
-
-#region WinPE
-if ($WindowsPhase -eq 'WinPE') {
-    Write-Host -ForegroundColor Red "[!] WinGet is not supported in WinPE"
-    $null = Stop-Transcript -ErrorAction Ignore
-}
-#endregion
-
-#region Specialize
-if ($WindowsPhase -eq 'Specialize') {
-    $null = Stop-Transcript -ErrorAction Ignore
-}
-#endregion
-
-#region AuditMode
-if ($WindowsPhase -eq 'AuditMode') {
-    $null = Stop-Transcript -ErrorAction Ignore
-}
-#endregion
-
-#region OOBE
-if ($WindowsPhase -eq 'OOBE') {
-    osdcloud-SetExecutionPolicy
-    osdcloud-SetPowerShellProfile
-    osdcloud-InstallPackageManagement
-    osdcloud-TrustPSGallery
-    osdcloud-InstallPowerShellModule -Name Pester
-    osdcloud-InstallPowerShellModule -Name PSReadLine
-    osdcloud-InstallWinGet
-    if (Get-Command 'WinGet' -ErrorAction SilentlyContinue) {
-        Write-Host -ForegroundColor Green "[+] winget upgrade --all --accept-source-agreements --accept-package-agreements"
-        winget upgrade --all --accept-source-agreements --accept-package-agreements
+#Install WinGet
+if (!$Winget){
+    LogWrite "WinGet not installed, attempting install with Add-AppxPackage"
+    Try {
+        LogWrite "Downloading WinGet and its dependencies..."
+        Start-Transcript -Path "$path\$Logfile" -Append
+        Invoke-WebRequest -Uri https://aka.ms/getwinget -OutFile "$path\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle" -Verbose
+        Invoke-WebRequest -Uri https://aka.ms/Microsoft.VCLibs.x64.14.00.Desktop.appx -OutFile "$path\Microsoft.VCLibs.x64.14.00.Desktop.appx" -Verbose
+        Invoke-WebRequest -Uri https://github.com/microsoft/microsoft-ui-xaml/releases/download/v2.7.3/Microsoft.UI.Xaml.2.7.x64.appx -OutFile "$path\Microsoft.UI.Xaml.2.7.x64.appx" -Verbose
+        Add-AppxProvisionedPackage -online -packagepath $path\Microsoft.VCLibs.x64.14.00.Desktop.appx -SkipLicense -Verbose
+        Add-AppxProvisionedPackage -online -packagepath $path\Microsoft.UI.Xaml.2.7.x64.appx -SkipLicense -Verbose
+        Add-AppxProvisionedPackage -online -packagepath $path\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle -SkipLicense -Verbose
+        Stop-Transcript
     }
-    osdcloud-InstallPwsh
-    Write-Host -ForegroundColor Green "[+] winget.osdcloud.com Complete"
-    winget install --id Omnissa.HorizonClient -e --scope machine --silent --disable-interactivity --accept-package-agreements --accept-source-agreements --override "VDM_SERVER=vdi.ijsselgemeenten.nl DESKTOP_SHORTCUT=1 /norestart"
-    $null = Stop-Transcript -ErrorAction Ignore
-}
-#endregion
-
-#region Windows
-if ($WindowsPhase -eq 'Windows') {
-    osdcloud-SetExecutionPolicy
-    osdcloud-SetPowerShellProfile
-    osdcloud-InstallPackageManagement
-    osdcloud-TrustPSGallery
-    osdcloud-InstallPowerShellModule -Name Pester
-    osdcloud-InstallPowerShellModule -Name PSReadLine
-    osdcloud-InstallWinGet
-    if (Get-Command 'WinGet' -ErrorAction SilentlyContinue) {
-        Write-Host -ForegroundColor Green '[+] winget upgrade --all --accept-source-agreements --accept-package-agreements'
-        winget upgrade --all --accept-source-agreements --accept-package-agreements
+    Catch {
+        Write-host "Unable to complete offline installer"
     }
-    osdcloud-InstallPwsh
-    Write-Host -ForegroundColor Green "[+] winget.osdcloud.com Complete"
-    $null = Stop-Transcript -ErrorAction Ignore
+} Else {
+    LogWrite "WinGet already installed"
 }
-#endregion
