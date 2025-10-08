@@ -105,7 +105,7 @@ if ($WindowsPhase -eq 'OOBE') {
     }
     osdcloud-InstallPwsh
     Write-Host -ForegroundColor Green "[+] winget.osdcloud.com Complete"
-    winget install --id Omnissa.HorizonClient -e --scope machine --silent --disable-interactivity --accept-package-agreements --accept-source-agreements --override "VDM_SERVER=vdi.ijsselgemeenten.nl DESKTOP_SHORTCUT=1 /norestart"
+    winget install --id Omnissa.HorizonClient -e --scope machine --silent --disable-interactivity --accept-package-agreements --accept-source-agreements --override "VDM_SERVER=vdi.ijsselgemeenten.nl DESKTOP_SHORTCUT=1 /norestart /silent"
     $null = Stop-Transcript -ErrorAction Ignore
 }
 #endregion
