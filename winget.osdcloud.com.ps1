@@ -1,3 +1,9 @@
+$ScriptName = 'grij-winget.ps1'
+
+#region Initialize
+$Transcript = "$((Get-Date).ToString('yyyy-MM-dd-HHmmss'))-$ScriptName.log"
+$null = Start-Transcript -Path (Join-Path "$env:SystemRoot\Temp" $Transcript) -ErrorAction Ignore
+
 #WebClient
 $dc = New-Object net.webclient
 $dc.UseDefaultCredentials = $true
@@ -36,3 +42,6 @@ New-Item -Path $InstallerFolder -ItemType Directory -Force -Confirm:$false
 		#Remove WinGet MSIXBundle 
 		#Remove-Item -Path "$InstallerFolder\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle" -Force -ErrorAction Continue
 		}
+
+#install omnissa horizon client
+winget install --id Omnissa.HorizonClient -e --scope machine --silent --disable-interactivity --accept-package-agreements --accept-source-agreements --override "VDM_SERVER=vdi.ijsselgemeenten.nl DESKTOP_SHORTCUT=1 /norestart /silent"
