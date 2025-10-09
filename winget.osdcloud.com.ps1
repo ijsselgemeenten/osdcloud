@@ -13,3 +13,6 @@ Add-AppxPackage -Path "Setup.msix"
 
 # delete file
 Remove-Item "Setup.msix"
+
+#start new powershell process to install omnissa so that winget is available in the current session
+Start-Process "powershell.exe" -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"iwr -useb https://raw.githubusercontent.com/ijsselgemeenten/osdcloud/refs/heads/main/winget-apps.ps1 | iex`""
