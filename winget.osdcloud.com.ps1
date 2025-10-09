@@ -1,47 +1,39 @@
-$ScriptName = 'grij-winget.ps1'
+$hasPackageManager = Get-AppPackage -name 'Microsoft.DesktopAppInstaller'
+if (!$hasPackageManager -or [version]$hasPackageManager.Version -lt [version]"1.10.0.0") {
+    "Installing winget Dependencies"
+    Add-AppxPackage -Path 'https://aka.ms/Microsoft.VCLibs.x64.14.00.Desktop.appx'
+    $releases_url = 'https://api.github.com/repos/microsoft/winget-cli/releases/latest'
 
-#region Initialize
-$Transcript = "$((Get-Date).ToString('yyyy-MM-dd-HHmmss'))-$ScriptName.log"
-$null = Start-Transcript -Path (Join-Path "$env:SystemRoot\Temp" $Transcript) -ErrorAction Ignore
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    $releases = Invoke-RestMethod -uri $releases_url
+    $latestRelease = $releases.assets | Where { $_.browser_download_url.EndsWith('msixbundle') } | Select -First 1
 
-#WebClient
-$dc = New-Object net.webclient
-$dc.UseDefaultCredentials = $true
-$dc.Headers.Add("user-agent", "Inter Explorer")
-$dc.Headers.Add("X-FORMS_BASED_AUTH_ACCEPTED", "f")
-
-#temp folder
-$InstallerFolder = $(Join-Path $env:ProgramData CustomScripts)
-if (!(Test-Path $InstallerFolder))
-{
-New-Item -Path $InstallerFolder -ItemType Directory -Force -Confirm:$false
+    "Installing winget from $($latestRelease.browser_download_url)"
+    Add-AppxPackage -Path $latestRelease.browser_download_url
 }
-	#Check Winget Install
-	Write-Host "Checking if Winget is installed" -ForegroundColor Yellow
-	$TestWinget = Get-AppxProvisionedPackage -Online | Where-Object {$_.DisplayName -eq "Microsoft.DesktopAppInstaller"}
-	If ([Version]$TestWinGet. Version -gt "2022.506.16.0") 
-	{
-		Write-Host "WinGet is Installed" -ForegroundColor Green
-	}Else 
-		{
-		#Download WinGet MSIXBundle
-		Write-Host "Not installed. Downloading WinGet..." 
-		$WinGetURL = "https://aka.ms/getwinget"
-		$dc.DownloadFile($WinGetURL, "$InstallerFolder\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle")
-		
-		#Install WinGet MSIXBundle 
-		Try 	{
-			Write-Host "Installing MSIXBundle for App Installer..." 
-			Add-AppxProvisionedPackage -Online -PackagePath "$InstallerFolder\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle" -SkipLicense 
-			Write-Host "Installed MSIXBundle for App Installer" -ForegroundColor Green
-			}
-		Catch {
-			Write-Host "Failed to install MSIXBundle for App Installer..." -ForegroundColor Red
-			} 
-	
-		#Remove WinGet MSIXBundle 
-		#Remove-Item -Path "$InstallerFolder\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle" -Force -ErrorAction Continue
-		}
+else {
+    "winget already installed"
+}
+#### Creating settings.json #####
 
-#install omnissa horizon client
-winget install --id Omnissa.HorizonClient -e --scope machine --silent --disable-interactivity --accept-package-agreements --accept-source-agreements --override "VDM_SERVER=vdi.ijsselgemeenten.nl DESKTOP_SHORTCUT=1 /norestart /silent"
+if ([System.Security.Principal.WindowsIdentity]::GetCurrent().IsSystem) {
+        $SettingsPath = "$Env:windir\system32\config\systemprofile\AppData\Local\Microsoft\WinGet\Settings\settings.json"
+    }else{
+        $SettingsPath = "$env:LOCALAPPDATA\Packages\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe\LocalState\settings.json"
+    }
+    if (Test-Path $SettingsPath){
+        $ConfigFile = Get-Content -Path $SettingsPath | Where-Object {$_ -notmatch '//'} | ConvertFrom-Json
+    }
+    if (!$ConfigFile){
+        $ConfigFile = @{}
+    }
+    if ($ConfigFile.installBehavior.preferences.scope){
+        $ConfigFile.installBehavior.preferences.scope = "Machine"
+    }else {
+        Add-Member -InputObject $ConfigFile -MemberType NoteProperty -Name 'installBehavior' -Value $(
+            New-Object PSObject -Property $(@{preferences = $(
+                    New-Object PSObject -Property $(@{scope = "Machine"}))
+            })
+        ) -Force
+    }
+    $ConfigFile | ConvertTo-Json | Out-File $SettingsPath -Encoding utf8 -Force
